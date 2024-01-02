@@ -1,0 +1,359 @@
+---
+title: "How to Kick Start your Kickstarter"
+subtitle: "DATA501 Foundations of Data Science Using R"
+author: "Cameron Bayer"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true    
+    toc_depth: 2
+---
+
+```{r setup, echo=FALSE, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+
+library(tidyverse)
+library(car)
+library(GGally)
+
+ds = read_csv("kickstarter.csv")
+
+ds = ds %>%
+  select(-NAME, -URL_NAME)%>%
+  mutate(STATE = factor(STATE))
+```
+
+<center>![](https://willamette.edu/offices/marketing/images/for-download/everyday-user/compass/large/compass-full-color.jpg){width="67"}</center>
+
+## ABSTRACT
+
+In my analysis of Kickstarter data, which included a wide range of projects, I wanted to uncover the important factors that contribute to a project's success on the platform. By thoroughly examining various aspects of projects such as funding goals, campaign duration, project categories, backer counts, and more, I wanted to identify the key factors that significantly influence the likelihood of a project being funded. The results of my analysis provide valuable insights for creators looking to get the most out of their Kickstarter campaigns. These findings highlight the most useful strategies and elements that are very important when it comes to improving the chances of a project's success. This analysis will ultimately help creators create more effective and successful Kickstarter projects.  
+
+
+## INTRODUCTION
+
+The data we will use for this analysis is from Kickstarter. Kickstarter is a funding platform where people can share their creative projects or ideas to raise money. This dataset will provide us with insights into the various factors that determine a project's success. The dataset contains both categorical and numeric variables. Each row represents an individual project, classified by category and subcategory as well as information about the project's launch location, duration, financial details, and success status. Kickstarter has proven to be a valuable resource for many people who need some support to launch their projects. However, for those who were not able to secure funding, there may have been steps they could have taken to increase their chances of success. In this analysis I am going to try and figure out what potential changes could have transformed a failed Kickstarter project into a successful one.
+
+
+## DATA AND METHODOLOGY
+
+In this analysis, I used a dataset that included a wide range of categorical and numeric variables. This data was collected via an observational study of Kickstarter projects. The main response variable that I focused on is called STATE, which categorizes each project into different outcomes: "successful," "failed," "canceled," or "suspended." This variable is important for understanding the final result or status of each project. With a dataset of over 506,000 observations, I explored different factors and their potential relationships with project success or failure. I used both categorical variables as well as the numeric ones to identify patterns, trends, and potential factors that affect project outcomes on the Kickstarter platform. By conducting statistical analyses and visualizations, my goal was to reveal insights about what lead to a projects success or failure in this large dataset. This data spans from 2008 to 2020. I omitted some of the rows that had missing values for two reasons. The first reason was to ensure the data cleanliness and completeness. The second reason was to reduce the dataset's size. With over half a million observations, the data can be quite overwhelming, so I wanted to make it more manageable.
+
+## RESULTS
+
+To gain a comprehensive understanding of the data I was working with, I wanted to determine which categories had the highest number of campaigns. In order to do that I needed to group my data by category and then count how many projects were in each category. 
+
+```{r echo=FALSE, warning=FALSE}
+greatest_camp <- ds%>%
+  select(CATEGORY, PID)
+
+greatest_camp_count = ds %>%
+  group_by(CATEGORY) %>%
+  summarise(count = n())
+
+ggplot(greatest_camp_count, aes(count, fct_reorder(CATEGORY, count)))+
+  geom_bar(stat = "identity")+
+  labs(x = "Number of Campaigns", y = "Category")+
+  theme_minimal()
+```
+
+This graph shows how campaigns are distributed across different categories on Kickstarter. The horizontal bars represent the number of campaigns in each category, giving a comparison of how often projects are posted in different creative domains. The length of each bar corresponds to the number of campaigns in a specific category, providing a quick visual assessment of the most popular and least common project categories on the platform. Based on these results, we can clearly see that the "Film & Video" category has the greatest quantity of campaigns while the "Dance" category has the least number of campaigns. 
+
+
+Next, I wanted to determine if there were any overarching time trends. Specifically, I aimed to investigate whether the total number of launches has increased each year compared to the previous year. To do that, I grouped my data by the year in which each of the projects were launched and then I counted how many projects were launched in each year. 
+
+```{r echo=FALSE, warning=FALSE}
+ds$LAUNCHED_DATE <- as.Date(ds$LAUNCHED_DATE, format = "%m/%d/%Y")
+ds$DEADLINE_DATE <- as.Date(ds$DEADLINE_DATE, format = "%m/%d/%Y")
+
+ds$KICK_LENGTH = ds$DEADLINE_DATE - ds$LAUNCHED_DATE
+
+ds$YEAR <- as.numeric(format(ds$LAUNCHED_DATE, "%Y"))
+
+time_trend = ds %>%
+  group_by(YEAR) %>%
+  summarise(count = n())
+
+ggplot(time_trend, aes(YEAR, count))+
+  geom_bar(stat = "identity")+
+  labs(x = "Year", y = "Number of Launches")+
+  theme_minimal()+
+  scale_x_continuous(breaks = seq(min(time_trend$YEAR), max(time_trend$YEAR), by = 1))
+
+```
+
+This graph illustrates the trend of Kickstarter project launches throughout the years. By aggregating the number of project launches per year, it provides a visual depiction of the platform's activity and growth across successive years. Here we can clearly see that Kickstarter reached its peak in 2015 in terms of the total number of projects launched on the site. Since then, the number of projects has been steadily decreasing. This trend is interesting because it suggests that Kickstarter may become obsolete in the next few years.
+
+```{r echo=FALSE, warning=FALSE}
+sf_filtered = ds%>%
+  filter(STATE == "successful" | STATE == "failed")%>%
+  filter(PROJECT_CURRENCY == "USD")
+```
+
+
+Next, I wanted to analyze the data to determine which project categories were associated with the highest number of successful campaigns. When you create a project on Kickstarter, you need to set a fundraising goal. However, the caveat with Kickstarter is that if you fail to reach your goal within the specified time frame, you won't receive any of the pledged money. You can only access the pledged funds if your goal is met. Therefore, when I mention wanting to examine which categories were linked to the most successful campaigns, I am referring to categories that had the greatest number of campaigns that achieved their financial goals.
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+cat_success = ds %>%
+  group_by(CATEGORY, STATE)%>%
+  summarise(count = n())
+
+ggplot(cat_success, aes(CATEGORY, count, fill = STATE))+
+  geom_bar(stat = "identity", position = "dodge")+
+  labs(x = "Category", y = "Number of Campaigns")+
+  theme_minimal()+
+  coord_flip()
+```
+
+This graph provides a comparative view of campaign outcomes within different categories on Kickstarter. By categorizing projects based on their respective fields and further segmenting them by their states, this visualization shows the distribution of successful and unsuccessful campaigns across various categories. We can see from this bar chart that the "Music" category is the one with the highest number of successful campaigns whereas the "Film & Video" category has the highest number of failed campaigns. 
+
+While examining the total number of successful and failed projects based on category is interesting, it may be more beneficial to analyze the ratio of successful and failed projects within each category.
+
+```{r echo=FALSE, warning=FALSE}
+cat_success %>%
+  pivot_wider(names_from = STATE, values_from = count)%>%
+  mutate(ratio = successful/failed)%>%
+  arrange(desc(ratio))%>%
+  select(CATEGORY, ratio)
+
+```
+
+Here we can see that if you're considering launching a Kickstarter project, your highest chance of getting funded would be if your project falls under the "Comics" category. This is because for every failed project in the "Comics" category, almost two projects get funded.
+
+
+Based on the above findings, I now want to conduct a hypothesis test to determine if the success rates of projects significantly differ across different project categories. To do this, I will perform a chi-squared test to determine if there is a significant association between the outcome (i.e., success or failure) of a project and the category it belongs to. A chi-squared test is the appropriate choice in this scenario because it assesses the association between categorical variables, specifically the relationship between the project outcome (success or failure) and the project categories.
+
+```{r echo=FALSE, warning=FALSE}
+filtered_ds = ds%>%
+  filter(STATE == "successful" | STATE == "failed")%>%
+  na.omit()
+
+filtered_ds$BID_PROP = filtered_ds$PLEDGED_IN_ORIGINAL_CURRENCY / filtered_ds$GOAL_IN_ORIGINAL_CURRENCY
+
+filtered_ds <- filtered_ds[!is.infinite(filtered_ds$BID_PROP), ]
+
+filtered_ds$outcome = ifelse(filtered_ds$STATE == "successful", 1, 0)
+
+filtered_ds$PLEDGED_IN_USD <- as.numeric(gsub("\\$", "", filtered_ds$PLEDGED_IN_USD))
+filtered_ds$GOAL_IN_USD <- as.numeric(gsub("[\\$,]", "", filtered_ds$GOAL_IN_USD))
+
+ds$PLEDGED_IN_USD <- as.numeric(gsub("\\$", "", ds$PLEDGED_IN_USD))
+ds$GOAL_IN_USD <- as.numeric(gsub("[\\$,]", "", ds$GOAL_IN_USD))
+
+filtered_ds = na.omit(filtered_ds)
+
+contingency_table <- table(filtered_ds$CATEGORY, filtered_ds$outcome)
+
+chi_sq_test <- chisq.test(contingency_table)
+
+print(chi_sq_test)
+```
+
+Since the p-value is less than 0.05, we can conclude that there is in fact a relationship between the category a project falls under and the success of the campaign.
+
+
+The provided data contained a large number of rows, so I wanted to narrow it down even further. To accomplish this, I decided to focus on the country with the highest number of Kickstarter projects. In order to do this, I grouped the data based on the currency that was used and then counted how many projects used each type of currency.
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+filtered_ds = filtered_ds%>%
+  filter(PROJECT_CURRENCY == "USD")
+
+currency_counts <- ds %>%
+  filter(STATE == "successful" | STATE == "failed")%>%
+  group_by(PROJECT_CURRENCY, STATE) %>%
+  summarise(count = n())
+
+ggplot(currency_counts, aes(x = reorder(as.factor(PROJECT_CURRENCY), count), y = count, fill = STATE)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "Currency Type", y = "Number of Campaigns", fill = "Outcome")+
+  theme_minimal()+
+  coord_flip()
+```
+
+This graph visualizes the distribution of successful and failed Kickstarter projects across different project currencies. Based on these results, I decided to specifically focus on Kickstarter projects that were launched in the US. Additionally, I want to filter the STATES column to only include projects that either failed or succeeded so they could be coded to just 1's and 0's later.
+
+
+Next, I wanted to examine the funding amounts requested by projects in each category. I am interested in determining if certain categories ask for significantly more money than others. In order to do this, I grouped the data by category once again. Then, I created a boxplot based on the goal amounts set for the projects. In order to obtain a useful boxplot, I had to remove the initial set of outliers. This was necessary because there were a few projects that were asking for over 100 million dollars.
+
+```{r echo=FALSE, warning=FALSE}
+fivesum = ds %>%
+  group_by(CATEGORY)%>%
+  summarise(
+    min = min(GOAL_IN_ORIGINAL_CURRENCY, na.rm = TRUE),
+    q1 = quantile(GOAL_IN_ORIGINAL_CURRENCY, probs = 0.25, na.rm = TRUE),
+    median = median(GOAL_IN_ORIGINAL_CURRENCY, na.rm = TRUE),
+    q3 = quantile(GOAL_IN_ORIGINAL_CURRENCY, probs = 0.75, na.rm = TRUE),
+    max = max(GOAL_IN_ORIGINAL_CURRENCY, na.rm = TRUE)
+  )
+
+Q1 <- quantile(ds$GOAL_IN_ORIGINAL_CURRENCY, 0.25)
+Q3 <- quantile(ds$GOAL_IN_ORIGINAL_CURRENCY, 0.75)
+IQR <- Q3 - Q1
+
+lower_limit <- Q1 - 1.5 * IQR
+upper_limit <- Q3 + 1.5 * IQR
+
+df_filtered <- ds %>%
+  filter(GOAL_IN_ORIGINAL_CURRENCY >= lower_limit & GOAL_IN_ORIGINAL_CURRENCY <= upper_limit)%>%
+  group_by(CATEGORY)
+
+ggplot(df_filtered, aes(x = CATEGORY, y = GOAL_IN_ORIGINAL_CURRENCY)) +
+  geom_boxplot()+
+  coord_flip()+
+  labs(x = "Category", y = "Goal in Original Currency")
+
+```
+
+This graph utilizes boxplots to visualize the distribution of funding goals across different project categories on Kickstarter, focusing on the interquartile range (IQR) to identify potential outliers in goal amounts. From this plot, we can clearly see that the people who launch projects that are classified as "Technology" ask for considerably more money than people who launch projects that are classified as any of the other categories. 
+
+To examine the relationship between the goal amount set by individuals and the success of a project, I conducted a test. Specifically, I performed a logistic regression analysis using the project's outcome (i.e., success or failure) and the set goal price as the variables of interest.
+
+```{r echo=FALSE, warning=FALSE}
+model_total_pledged <- glm(outcome ~ GOAL_IN_ORIGINAL_CURRENCY, data = filtered_ds, family = binomial)
+
+summary(model_total_pledged)
+```
+
+Since the p-value of the GOAL_IN_ORIGINAL_CURRENCY variable is less than 0.05, we can conclude that the goal amount set by people for their projects is statistically significant in predicting the success of a project.
+
+
+Next, I wanted to run a quick correlation matrix to determine if there are any correlations among the numeric variables.
+
+```{r echo=FALSE, warning=FALSE}
+correlation_filtered = filtered_ds%>%
+  mutate(KICK_LENGTH = as.numeric(KICK_LENGTH))%>%
+  select(GOAL_IN_ORIGINAL_CURRENCY, PLEDGED_IN_ORIGINAL_CURRENCY, GOAL_IN_USD, PLEDGED_IN_USD, BACKERS_COUNT, KICK_LENGTH, BID_PROP, YEAR)%>%
+  na.omit()
+
+ggpairs(correlation_filtered)
+```
+
+This graph presents a comprehensive view of the relationships between various key variables in Kickstarter projects. We can clearly see from this output that there are very few variables that show any correlation, and the ones that do have some correlation are highly correlated. For example, it makes sense that PLEDGED_IN_USD and PLEDGED_IN_ORIGINAL_CURRENCY are identical. The only interesting correlation there appears to be is the relatively strong correlation between BACKERS_COUNT and PLEDGED_IN_USD. 
+
+
+Since BACKERS_COUNT and PLEDGED_IN_USD have a higher correlation of 0.711, I wanted to graph their values and see what they look like.
+
+```{r echo=FALSE, warning=FALSE}
+correlation_ds = ds%>%
+  mutate(KICK_LENGTH = as.numeric(KICK_LENGTH))%>%
+  select(GOAL_IN_ORIGINAL_CURRENCY, PLEDGED_IN_ORIGINAL_CURRENCY, GOAL_IN_USD, PLEDGED_IN_USD, BACKERS_COUNT, KICK_LENGTH, YEAR)%>%
+  na.omit()
+
+ds_cor_matrix = cor(correlation_ds)
+
+ggplot(correlation_ds, aes(BACKERS_COUNT, PLEDGED_IN_USD))+
+  geom_point()+
+  theme_minimal()+
+  geom_smooth(method = "lm", warning=FALSE)+
+  ylim(0,1000)+
+  xlim(0,200)+
+  labs(x = "Number of Backers", y = "Pledged in USD")
+```
+
+This graph shows the relationship between the number of backers and the amount pledged in USD for Kickstarter projects. It makes intuitive sense that having more backers will result in more money being pledged to your project. However, it is still interesting to observe the relative rate at which the money is pledged. I am now going to run a linear regression model to quickly analyze the relationship between the amount of money pledged in USD (dependent variable) and the number of backers (independent variable).
+
+```{r echo=FALSE}
+lm(PLEDGED_IN_USD ~ BACKERS_COUNT, data = correlation_ds)
+```
+
+From running this model, we can see that for each additional backer (i.e. each person who pledges), there was an increase of 20.08 dollars in the amount of money pledged in USD. It's important to note however that this model is not perfect, as the intercept is at 72.08. This means that even if there were no backers, the project would still have received $72.08 somehow.
+
+
+Next, I conducted a multiple linear regression analysis to identify the significant variables in determining the success or failure of a project.
+
+```{r echo=FALSE, warning=FALSE}
+mod=lm(outcome~CATEGORY_ID + SUBCATEGORY_ID + GOAL_IN_ORIGINAL_CURRENCY + PLEDGED_IN_ORIGINAL_CURRENCY + BACKERS_COUNT + KICK_LENGTH, filtered_ds)
+summary(mod)
+```
+
+From this analysis, it is evident that every variable is statistically significant (assuming a significance level of $\alpha = 0.05$), except for the GOAL_IN_ORIGINAL_CURRENCY variable. It is important to mention, however, that these variables collectively explain only 27.15% of the variation in the outcome, as indicated by the R-squared value.
+
+
+Additionally, I wanted to conduct a multiple linear regression to determine if any of these variables affected the ratio of the goal amount versus the amount of money pledged. To accomplish this, I created a new column in my dataset that contained the ratio of (amount_pledged/goal_amount).
+
+```{r echo=FALSE, warning=FALSE}
+mod=lm(BID_PROP~GOAL_IN_ORIGINAL_CURRENCY + PLEDGED_IN_ORIGINAL_CURRENCY + BACKERS_COUNT + KICK_LENGTH, filtered_ds)
+summary(mod)
+```
+
+From this analysis, we can clearly see that three of the four variables are statistically significant (assuming a significance level of $\alpha = 0.05$), when it comes to determining the pledge to goal ratio. However, while there are three significant variables in the analysis, they collectively explain only 0.8344% of the variation in the pledged to goal ratio, as indicated by the R-squared value which means this regression is essentially worthless. 
+
+
+The last aspect I wanted to consider was the duration of each project. I was interested in investigating whether projects that remained on the site for a longer period of time had a higher success rate, as this would allow more people to discover the project and make a pledge.
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+sf_filtered$WEEKS = cut(as.numeric(sf_filtered$KICK_LENGTH), breaks = seq(0, max(as.numeric(sf_filtered$KICK_LENGTH)) + 7, by = 7), labels = FALSE, right = FALSE)
+
+week_counts <- sf_filtered %>%
+  group_by(STATE, WEEKS) %>%
+  summarise(count = n())
+
+ggplot(week_counts, aes(x = as.factor(WEEKS), y = count, fill = STATE)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "Weeks", y = "Number of Campaigns", fill = "Outcome") +
+  theme_minimal()
+```
+
+This graph illustrates the distribution of project states (successful or failed) across different weeks of campaign duration on Kickstarter. We can clearly see that a majority of the projects posted on Kickstarter typically remain on the site for approximately 5 weeks.
+
+Based on this finding I wanted to run one last hypothesis test to determine if the amount of time the project was up had any influence on whether the project was successful or not. To do this, I will conduct a two-sample t-test to compare the mean duration of time that successful projects remains on the site with the mean duration of time that failed projects remains on the site.
+
+```{r echo=FALSE}
+success_goals <- filtered_ds$KICK_LENGTH[filtered_ds$outcome == 1]
+failed_goals <- filtered_ds$KICK_LENGTH[filtered_ds$outcome == 0]
+
+t_test_result <- t.test(success_goals, failed_goals)
+
+print(t_test_result)
+```
+
+This t-test compared the mean campaign durations (in terms of Kickstarter project length) between successful and failed projects. Due to the fact that we got a p-value that is less than 0.05, we can conclude that there is a statistically significant difference in the mean campaign durations between successful and failed Kickstarter projects.
+
+
+
+## CONCLUSION
+
+In conclusion, this analysis dove into various factors that contribute to the success of projects on Kickstarter. By examining the different categories, funding dynamics, project durations, and more, a few valuable insights were uncovered. This analysis revealed interesting findings, such as the higher success rates in the "Comics" category and the ambitious nature of the "Technology" sector. It also highlighted how the usage of the platform has changed over time. The importance of funding goals and the influence of backers on the financial trajectory of a campaign were also emphasized. The analysis showed that campaigns that lasted around five weeks had higher chances of success. However, it is important to note that these statistical analyses only provide a partial view of what could be going on. The combination of category choice, funding goals, backers' contributions, and campaign duration all play a role in determining the outcome of a project. Thus, by focusing on strategic category selection and thoughtful funding strategies creators can increase their chances of success on Kickstarter. While there were a bunch of interesting trends, this data did fall short in a couple of ways. For example, this data did not show any clear linear trends or definitively identify the most important variables that influence project success. In order to improve this analysis, an interesting area for further investigation could be to analyze the impact of project titles and explore whether a compelling title contributes to project success. Additionally, examining project descriptions and images could provide insights into whether less technical descriptions attract more pledges. These unexplored aspects - title impact, content nuances, and visual elements have the potential to provide an even better understanding of what makes a successful Kickstarter project. 
+
+
+## APPENDIX
+
+The plot below illustrates the relationship between the set goal amount and the amount of money pledged. It also includes linear regression lines to depict the difference between successful and failed projects.
+
+```{r echo=FALSE, warning=FALSE}
+ggplot(sf_filtered, aes(PLEDGED_IN_ORIGINAL_CURRENCY, GOAL_IN_ORIGINAL_CURRENCY, color = STATE))+
+  geom_point()+
+  xlim(0, 1500000)+
+  ylim(0, 1500000)+
+  geom_smooth(method = "lm", se = FALSE, warning=FALSE)+
+  labs(x = "Pledged in Original Currency", y = "Goal in Original Currency", color = "Outcome")
+
+```
+
+The plot below is a logistic regression curve that shows the probability of having a successful project based on the number of backers that have pledged to your project.
+
+```{r echo=FALSE, warning=FALSE}
+ds$PLEDGED_IN_USD <- as.numeric(gsub("\\$", "", ds$PLEDGED_IN_USD))
+ds$GOAL_IN_USD <- as.numeric(gsub("[\\$,]", "", ds$GOAL_IN_USD))
+
+logit_ds = ds %>%
+  filter(STATE == "successful" | STATE == "failed")
+
+logit_ds$PLEDGED_IN_USD[is.na(logit_ds$PLEDGED_IN_USD)] <- 0
+logit_ds$PLEDGED_IN_ORIGINAL_CURRENCY[is.na(logit_ds$PLEDGED_IN_ORIGINAL_CURRENCY)] <- 0
+
+logit_ds$outcome = ifelse(logit_ds$STATE == "successful", 1, 0)
+
+logistic_model <- glm(outcome ~ KICK_LENGTH, data = logit_ds, family = binomial)
+
+ggplot(logit_ds, aes(x = BACKERS_COUNT, y = outcome)) +
+  geom_point() +
+  geom_smooth(method = "glm", method.args = list(family = "binomial"), warning=FALSE) +
+  labs(x = "Backers Count", y = "Outcome")
+```
+
+## REFERENCES
+
+https://www.kickstarter.com/ 
+
+https://www.kickstarter.com/help/:~:text=How%20does%20it%20work?,are%20charged%20when%20time%20expires. 
